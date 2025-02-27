@@ -1,0 +1,85 @@
+version: '3.8'
+services:
+
+  database:
+    image: postgres:alpine
+    container_name: database
+    init: true
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - my_network
+    env_file:
+      .env
+    restart: always
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin4_container
+    restart: always
+    ports:
+      - "8888:80"
+    env_file:
+      .env
+    networks:
+      - my_network
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+
+  nginx:
+    build:
+      context: ./nginx
+    container_name: nginx
+    init: true
+    ports:
+      - "${NGINX_PORT}:443"
+    networks:
+      - my_network
+    env_file:
+      - .env
+    restart: always
+
+  backend:
+    build:
+      context: ./backend
+    container_name: backend
+    init: true
+    ports:
+      - "${BACKEND_PORT}:${BACKEND_PORT}"
+      - 5555:5555
+    volumes:
+      - back_node_modules:/usr/src/app/node_modules
+    networks:
+      - my_network
+    env_file:
+      - .env
+    restart: always
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: frontend
+    init: true
+    ports:
+      - "${FRONTEND_PORT}:${FRONTEND_PORT}"
+    volumes:
+      - front_node_modules:/usr/src/app/node_modules
+    networks:
+      - my_network
+    env_file:
+      - .env
+    restart: always
+
+
+volumes:
+  postgres_data:
+  front_node_modules:
+  back_node_modules:
+  pgadmin-data:
+
+networks:
+  my_network:
+    name: ${NETWORK}
+    driver: bridge

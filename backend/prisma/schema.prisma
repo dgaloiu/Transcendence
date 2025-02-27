@@ -1,0 +1,199 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+	id					String			@id @default(uuid())
+	email				String
+	intraLogin			String			@unique
+	name				String?			@unique
+	socketId			String?
+	gameWon				Int				@default(0)
+	gameLost			Int				@default(0)
+	doubleAuth			Boolean			@default(false)
+	doubleAuthSecret	String			@default("no_secret")
+
+	isConnected			Boolean			@default(false)
+	isTalking			Boolean			@default(false)
+	isPlaying			Boolean			@default(false)
+
+	score				Int				@default(0)
+	paddlePos			Float           @default(262.5)
+	avatar				String?
+
+	history				History[]		@relation("history")
+	opponent			History[]		@relation("opponent")
+	blockedUser			BlockedUser[]		@relation("blockedUser")
+	blocked				BlockedUser[]		@relation("blocked")
+	friends				UserUser[]		@relation("friends")
+	friendOf			UserUser[]		@relation("friendOf")
+	ownerOf				Room[]
+	adminOf				RoomAdmin[]		@relation()
+	userOf				RoomUser[]		@relation()
+	mutedIn				RoomMuted[]		@relation()
+	bannedIn			RoomBanned[]	@relation()
+	dirMessF			DirectMessage[]	@relation("from")
+	dirMessT			DirectMessage[]	@relation("to")
+	messages			Message[]
+}
+
+model BlockedUser {
+	blocker		User	@relation("blockedUser", fields: [blockerId], references: [id])
+	blockerId	String
+
+	blockedUser		User	@relation("blocked", fields: [blockedUserId], references: [id])
+	blockedUserId	String
+
+	@@id([blockedUserId, blockerId])
+}
+
+
+model UserUser {
+	id			String	@id @default(uuid())
+
+	blocked		Boolean	@default(false)
+	friendship	Boolean	@default(true)
+
+	friend		User	@relation("friends", fields: [friendId], references: [id])
+	friendId	String
+
+	user		User	@relation("friendOf", fields: [userId], references: [id])
+	userId		String
+
+	room		Room	@relation(fields: [roomId], references: [id], onDelete: Cascade)
+	roomId		String
+	@@unique([userId, friendId])
+}
+
+model History {
+  id          String     @id @default(uuid())
+  user        User    @relation("history", fields: [userId], references: [id])
+  userId      String
+  won         Boolean
+  looserScore Int
+  winnerScore Int
+  opponent    User    @relation("opponent", fields: [opponentId], references: [id])
+  opponentId  String
+}
+
+model Game {
+	gameId		String		@id	@default(uuid())
+	players		String[]
+
+//Ball
+	x			 Int		@default(0)
+	y			 Int		@default(0)
+	dirX		 Float		@default(1)
+	dirY 		 Float		@default(0)
+	speed		 Float		@default(3)
+
+//Settings
+	speedIncrease	Float	@default(0.3)
+	paddleWidth		Int		@default(5)
+	winScore		Int		@default(11)
+	ballSize		Int		@default(10)
+	ballSpeed		Int		@default(3)
+	distPaddle		Int		@default(40)
+	paddleSize		Int		@default(80)
+	paddleSpeed		Int		@default(35)
+	gameColor		String	@default("white")
+}
+
+enum RoomType {
+  PUBLIC
+  PRIVATE
+  PROTECTED
+  P2P
+}
+
+model Room {
+	id				String			@id @default(uuid())
+	name			String
+	password		String?
+
+	type			RoomType		@default(PUBLIC)
+	privateRoom		UserUser[]		@relation()
+
+	owner			User?			@relation(fields: [ownerId], references: [id])
+	ownerId			String?
+
+	admins			RoomAdmin[]		@relation()
+	adminsId		Int[]
+
+	users			RoomUser[]		@relation()
+	mutedUsers		RoomMuted[]		@relation()
+	bannedUsers		RoomBanned[]	@relation()
+	messages		Message[]		@relation()
+}
+
+model RoomUser {
+	user		User	@relation(fields: [userId], references: [id])
+	userId		String
+
+	room		Room	@relation(fields: [roomId], references: [id], onDelete: Cascade)
+	roomId		String
+
+	@@id([userId, roomId])
+}
+
+model RoomAdmin {
+	user	User	@relation(fields: [userId], references: [id])
+	userId	String
+
+	room	Room	@relation(fields: [roomId], references: [id], onDelete: Cascade)
+	roomId	String
+
+	@@id([userId, roomId])
+}
+
+model RoomBanned {
+	user	User	@relation(fields: [userId], references: [id])
+	userId	String
+
+	room	Room	@relation(fields: [roomId], references: [id], onDelete: Cascade)
+	roomId	String
+
+	@@id([userId, roomId])
+}
+
+model RoomMuted {
+	user		User		@relation(fields: [userId], references: [id])
+	userId		String
+
+	room		Room		@relation(fields: [roomId], references: [id], onDelete: Cascade)
+	roomId		String
+
+	mutedUntil	DateTime	@default(now())
+	@@id([userId, roomId])
+}
+
+model Message {
+	id			String   @id @default(uuid())
+
+	room		Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+	roomId		String
+	roomName	String
+
+	sender		User @relation(fields: [senderId], references: [id])
+	senderId	String
+	senderName	String
+
+	date		DateTime @default(now())
+	message		String
+}
+
+model DirectMessage {
+  id          String @id @default(uuid())
+  from        User @relation("from", fields: [fromId], references: [id])
+  fromId      String
+  to          User @relation("to", fields: [toId], references: [id])
+  toId        String
+  date        DateTime @default(now())
+  message     String
+}
+
